@@ -1,0 +1,75 @@
+ import dash
+import dash_core_components as dcc
+import dash_html_components as html
+import pandas as pd
+import plotly.graph_objs as go
+from dash.dependencies import Input, Output
+
+data = pd.read_csv(
+    'https://raw.githubusercontent.com/lwagoner/tools/master/elec.csv', header = 1)
+col = ['year', 'state', 'industry', 'residential', 'commercial', 'industrial', 'transportation', 'other', 'total']
+data.columns = col
+
+## Select Total Electric observations only
+dat0 = data.loc[data['industry'] == 'Total Electric Industry']
+df = dat0.loc[dat0['year'] >= 1990]
+
+app = dash.Dash(__name__)
+
+app.layout = html.Div([
+    html.H1 ("Average Price of electricity"),
+    html.H4("Choose a sector and year"),
+    dcc.RadioItems(
+        id = 'sector',
+        options = [{'label': 'commercial', 'value': 'commercial'},
+                   {'label': 'residential', 'value': 'residential'},
+                   {'label': 'industrial', 'value': 'industrial'},
+                   {'label': 'total', 'value' : 'total'}],
+        value='total',
+        labelStyle={'display': 'inline-block'}
+        ),    
+    dcc.Graph(id = 'bar'),
+    dcc.Slider(
+                id='year-slider',
+                min=df['year'].min(),
+                max=df['year'].max(),
+                value=df['year'].max(),
+                step=None,
+                marks={str(year): str(year) for year in df['year'].unique()}
+            )],
+    
+    style={'width': '75%', 'display': 'inline-block'})
+
+@app.callback(
+    Output('bar', 'figure'),
+    [Input('year-slider', 'value'),
+     Input('sector', 'value')])
+
+def update_figure(year, sector):
+    if year =="All":
+        filtered_df = df
+    else:
+        filtered_df = df[df['year']== year]
+    
+    traces = []
+    for i in filtered_df.state.unique():
+        df_by_state = filtered_df[filtered_df['state'] == i]
+        traces.append(go.Bar(
+            x= df_by_state['state'],
+            y= df_by_state[sector],
+            name= year
+        ))
+        
+    return {
+        'data': traces,
+        'layout': go.Layout(
+        xaxis={'title': 'state'},
+        yaxis={'title': 'Cent per KW/Hr', 'range': [0,40]},
+        margin={'l': 40, 'b': 80, 't': 10, 'r': 10},
+        showlegend=False,
+        hovermode='closest'
+    )
+    }
+
+if __name__ == '__main__':
+    app.run_server()
