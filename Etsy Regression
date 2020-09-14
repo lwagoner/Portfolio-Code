@@ -1,0 +1,114 @@
+##Import the necessary libraries
+import pandas as pd
+import numpy as np
+import patsy as pt
+import statsmodels.formula.api as sm
+from scipy import stats
+from sklearn.linear_model import LogisticRegression
+import re
+import plotly.offline as pyo
+import plotly.graph_objs as go
+
+##Read in CSV files
+
+phish = pd.read_csv("phish.csv", sep = '\t', header = 0, encoding = 'latin-1')
+grateful = pd.read_csv("grateful.csv", sep = '\t', header = 0, encoding = 'latin-1')
+
+## Combine data files
+data = phish.append(grateful)
+
+##rename columns & drop description category
+col = ['url', 'rating', 'price', 'sales', 'category', 'name', 'description']
+data.columns = col
+phish.columns = col
+grateful.columns = col
+
+
+# In[20]:
+
+
+data = data.drop(['description'], axis =1)
+
+
+# In[26]:
+
+
+## create new category for the length of a items name (characters)
+data['len_name'] = [len(i) for i in data['name']]
+
+
+# In[27]:
+
+
+##Parse category to collect only the first category listing
+result = [re.search(r'.+?(?= zzz)', i) for i in data['category']]
+
+
+# In[28]:
+
+
+##Parse through results to generate a new column for type of cateogry
+
+search = []
+for i in result:
+    try:
+        search.append(i.group())
+    except:
+        search.append("No Category")
+        
+data['new_category'] = search
+
+
+# In[29]:
+
+
+data.describe()
+
+
+# In[30]:
+
+
+##collect highest price and most sold items for each band
+data.loc[grateful['sales'].idxmax()]
+data.loc[grateful['price'].idxmax()]
+
+data.loc[phish['sales'].idxmax()]
+data.loc[phish['price'].idxmax()]
+
+
+# In[31]:
+
+
+##OLS regression
+reg = sm.ols("sales ~ rating + price + len_name + C(new_category)", data=data).fit()
+reg.summary()
+
+
+# In[32]:
+
+
+##total items by category
+x = data['new_category']
+fig = go.Figure(data=[go.Histogram(x=x)])
+fig.show()
+
+
+# In[33]:
+
+
+fig1 = go.Figure([go.Bar(x=data['rating'], y=data['sales'])])
+fig1.show()
+
+
+# In[34]:
+
+
+fig2 = go.Figure([go.Bar(x=data['category'], y=data['sales'])])
+fig2.show()
+
+
+# In[14]:
+
+
+fig3 = go.Figure([go.Bar(x=data['price'], y=data['sales'])])
+fig3.show()
