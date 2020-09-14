@@ -1,2 +1,1 @@
-# Portfolio
-Samples
+The files and documents in this folder represent sample code I have compiled as well as some writing samples. This work was completed as part of my coursework with the University of Nebraska-Omaha and in my free time.
