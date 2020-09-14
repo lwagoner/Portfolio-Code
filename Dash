@@ -1,0 +1,73 @@
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
+import pandas as pd
+import plotly.graph_objs as go
+from dash.dependencies import Input, Output
+
+data = pd.read_csv(
+    'https://raw.githubusercontent.com/lwagoner/tools/master/elec.csv', header = 1)
+col = ['year', 'state', 'industry', 'residential', 'commercial', 'industrial', 'transportation', 'other', 'total']
+data.columns = col
+
+## Select Total Electric observations & observations after 1989 only
+dat0 = data.loc[data['industry'] == 'Total Electric Industry']
+df = dat0.loc[dat0['year'] >= 1989]
+
+
+app = dash.Dash(__name__)
+
+app.layout = html.Div([
+    html.H1 ("Average Price of electricity"),
+    html.H4("Choose a State:"),
+    dcc.Dropdown(
+        id = 'state',
+        options = [{'label': i, 'value': i} for i in ['All'] + sorted(df.state.unique())],
+        value = 'ALL',
+       ),
+    html.H4("Choose a sector:"),
+    dcc.RadioItems(
+        id = 'sector',
+        options = [{'label': 'commercial', 'value': 'commercial'},
+                   {'label': 'residential', 'value': 'residential'},
+                   {'label': 'industrial', 'value': 'industrial'},
+                   {'label': 'total', 'value' : 'total'}],
+        value='total',
+        labelStyle={'display': 'inline-block'}
+        ),  
+
+    dcc.Graph(id = 'graph')
+    ],
+        
+    style={'width': '48%', 'display': 'inline-block'})
+
+@app.callback(Output('graph','figure'),
+              [Input('state','value'),
+               Input('sector', 'value')])
+
+def update_figure(state, sector):
+  if state=='All':
+    filtered_df = df
+  else:
+    filtered_df = df[df['state']==state]
+  traces = []
+  for i in sorted(filtered_df.state.unique()):
+    df_by_state = filtered_df[filtered_df['state'] == i]
+    traces.append(go.Scatter(
+        x= df_by_state['year'],
+        y= df_by_state[sector],
+        name= i
+        ))
+  return {
+    'data': traces,
+    'layout': go.Layout(
+      xaxis={'title': 'year'},
+      yaxis={'title': 'KW/H', 'range':[0, 40]},
+      margin={'l': 40, 'b': 80, 't': 10, 'r': 10},
+      showlegend=False,
+      hovermode='closest'
+    )
+    }
+
+if __name__ == '__main__':
+    app.run_server()
