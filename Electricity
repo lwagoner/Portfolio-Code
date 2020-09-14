@@ -1,0 +1,147 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[2]:
+
+
+# Import the necessaries libraries
+import pandas as pd
+import plotly.offline as pyo
+import plotly.graph_objs as go
+
+# Set notebook mode to work in offline
+pyo.init_notebook_mode()
+
+# Read in data file
+data = pd.read_csv("elec.csv", header = 1)
+
+# Re-name columns
+col = ['year', 'state', 'industry', 'residential', 'commercial', 'industrial', 'transportation', 'other', 'total']
+data.columns = col
+
+## Select Total Electric observations only
+dat0 = data.loc[data['industry'] == 'Total Electric Industry']
+
+#Slice & Dice data for plotting
+#Plot 1. Average Price (Cents/Kilowatt HR) By State--Residental/Total Electric Industry
+data18 = dat0.loc[dat0['year'] == 2018]
+
+plotdata1 = go.Choropleth(
+        locations = data18['state'],
+        z = data18['residential'],
+        locationmode = 'USA-states',
+        #text = (dat['rank'], dat['rank']),
+        autocolorscale = True,
+        colorscale = 'Picnic',
+        showscale = True,
+        colorbar_title = "KW/Hr",
+    )
+
+layout1 = go.Layout(
+    title = "Average Residential Electricity Prices (2018)",
+    geo_scope = 'usa')
+    
+
+figure1 = go.Figure(data=[plotdata1], layout=layout1)
+pyo.iplot(figure1)
+
+
+
+#Plot 2. Nebraska last ten  years
+dat1 = dat0.loc[dat0['state'] == 'NE']
+dataNE = dat1.loc[dat0['year'] >= 1999]
+dataNE
+
+#plot residential
+trace = go.Scatter(
+x = dataNE['year'],
+y = dataNE['residential'],
+marker = {'color' : 'green',
+         'symbol' : 0,
+         'size' : 12},
+        line = dict(
+        shape = 'spline'
+    ),
+    text = ['Year: ' + str(i) for i in dataNE['year']],
+    name = 'Residential')
+#plot commercial
+trace2 = go.Scatter(
+x = dataNE['year'],
+y = dataNE['commercial'],
+marker = {'color' : 'blue',
+         'symbol' : 0,
+         'size' : 12},
+        line = dict(
+        shape = 'spline'
+    ),
+    text = ['Year: ' + str(i) for i in dataNE['year']],
+    name = 'Commercial')
+#plot idustrial
+trace3 = go.Scatter(
+x = dataNE['year'],
+y = dataNE['industrial'],
+marker = {'color' : 'yellow',
+         'symbol' : 0,
+         'size' : 12},
+        line = dict(
+        shape = 'spline'
+    ),
+    text = ['Year: ' + str(i) for i in dataNE['year']],
+    name = 'Industrial')
+#plot total
+trace4 = go.Scatter(
+x = dataNE['year'],
+y = dataNE['total'],
+marker = {'color' : 'red',
+         'symbol' : 0,
+         'size' : 12},
+        line = dict(
+        shape = 'spline'
+    ),
+    text = ['Year: ' + str(i) for i in dataNE['year']],
+    name = 'Total')
+
+#plot figure
+plotdata = go.Data([trace, trace2, trace3, trace4])
+#layout
+layout = go.Layout(title = "Average Electricity Prices in Nebraska (1999-2018)",
+                  xaxis = {'title': 'Year',
+                          'showgrid':False},
+                  yaxis = {'title': 'Cent per Kilowatt Hr',
+                          'showgrid':False},
+                   yaxis2 = {'title': 'Cent per Kilowatt Hr',
+                          'showgrid':False},
+                   yaxis3 = {'title': 'Cent per Kilowtt Hr',
+                          'showgrid':False},
+                   yaxis4 = {'title': 'Cent per Kilowtt Hr',
+                          'showgrid':False})
+
+
+                   
+figure = go.Figure(data = plotdata, layout = layout)
+
+pyo.iplot(figure)
+
+#Plot 3. Boxplot
+
+trace5 = go.Box(
+  y= data18['total'],
+  name='Mean & SD',
+  marker=dict(
+    color='rgb(10, 140, 208)',
+  ),
+  boxmean='sd' # Shows quartiles AND Std Dev on plot
+)
+
+
+
+plotdata = go.Data([trace5])
+figure2 = go.Figure(data=plotdata)
+pyo.iplot(figure2)
+
+
+# In[ ]:
+
+
+
+
