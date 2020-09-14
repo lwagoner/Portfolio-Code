@@ -1,0 +1,262 @@
+The following is R code for my Econometrics project. The code takes data from 2017 NIH public health survey and runs ordinary least squares regression and logit regression.
+This code accompanies the paper "Determinants of Prescription Drug Pricing" Written as part of the requirements for Econometrics coursework at the University of Nebraska-Omaha.
+
+##Set Working Directory
+
+setwd("C:/Users/lucas/desktop/econ")
+
+library(tidyverse)
+library(skimr)
+library(psych)
+library(stargazer)
+library(margins)
+library(plm)
+library(sandwich)
+library(lmtest)
+
+#read into CSV files
+p <- read.csv(file="C:/Users/lucas/desktop/econ/persons.csv", header = TRUE, sep =",")
+q<- read.csv(file= "C:/Users/lucas/desktop/econ/samadult.csv", header = TRUE, sep = ",")
+
+r <- read.csv(file = "C:/Users/lucas/desktop/econ/persons18.csv", header = TRUE, sep = ",")
+s <- read.csv(file = "C:/Users/lucas/desktop/econ/samadult18.csv", header = TRUE, sep = ",")
+
+##merge Adult and Person files
+##2018 data
+nhi18<- left_join(r, s, by = c("HHX", "FMX", "FPX"))
+##2017 data
+nhi<-left_join(q, p, by = c("HHX","FMX","FPX"))
+
+###Select variables
+##2017
+nh1<- select(nhi,
+            HHX, FMX, FPX, ARX12MO, AHCAFYR1, AGE_P.x, SEX.x,
+            HISCODI3, BMI, PHSTAT, COVER,
+            NOTCOV,ERNYR_P, FLA1AR,
+            AFLHCA11, AFLHCA12, AFLHCA17, AFLHCA10, AFLHCA9, AFLHCA3,
+            AFLHCA7, AFLHC21_, AFLHC22_, AFLHC25_,
+            LAHCA17, LAHCA11, LAHCA12,
+            LAHCA10, LAHCA9, LAHCA3, LAHCA7,
+            LAHCA21_, LAHCA22_, LAHCA25_, SMKSTAT2, ALC12MTP)
+#2017
+pool1<- select(nhi,
+               HHX, FMX, FPX, ARX12MO, AHCAFYR1, AGE_P.x, SEX.x,
+               HISCODI3, BMI, PHSTAT, COVER,
+               NOTCOV,ERNYR_P, FLA1AR,
+               AFLHCA11, AFLHCA12, AFLHCA17, AFLHCA10, AFLHCA9, AFLHCA3,
+               AFLHCA7, AFLHC21_, AFLHC22_, AFLHC25_,
+               LAHCA17, LAHCA11, LAHCA12,
+               LAHCA10, LAHCA9, LAHCA3, LAHCA7,
+               LAHCA21_, LAHCA22_, LAHCA25_, SMKSTAT2, ALC12MTP)
+
+##2018
+pool2 <- select(nhi18,
+                HHX, FMX, FPX, ARX12MO, AHCAFYR1, AGE_P.x, SEX.x,
+                HISCODI3, BMI, PHSTAT, COVER,
+                NOTCOV,ERNYR_P, FLA1AR,
+                AFLHCA11, AFLHCA12, AFLHCA17, AFLHCA10, AFLHCA9, AFLHCA3,
+                AFLHCA7, AFLHC21_, AFLHC22_, AFLHC25_,
+                LAHCA17, LAHCA11, LAHCA12,
+                LAHCA10, LAHCA9, LAHCA3, LAHCA7,
+                LAHCA21_, LAHCA22_, LAHCA25_, SMKSTAT2, ALC12MTP)
+
+##merge 2017&2018 cross-sections
+total <- rbind(pool1, pool2)
+
+##create dummies
+
+nh2<- mutate(nh1,
+             rx = ifelse(ARX12MO == 1,1,
+                         ifelse(ARX12MO ==2,0,0)),
+             nrx = ifelse(AHCAFYR1 == 1, 1,
+                          ifelse(AHCAFYR1 == 2,0,NA)),
+             male = (ifelse(SEX.x ==1,1,0)),
+             race.hs = (ifelse(HISCODI3 == 1, 1, 0)),
+             race.wt = (ifelse(HISCODI3 == 2, 1, 0)),
+             race.ot = (ifelse(HISCODI3 >=3,1,0)),
+             ls.obs = ifelse(BMI <3001,0,
+                             ifelse(BMI >= 9998, NA, 1)),
+             ls.smoke = ifelse(SMKSTAT2 <= 2, 1, 0),
+             ls.alc = ifelse(ALC12MTP == 1,1,0),
+             hlth.exc = ifelse(PHSTAT == 1,1,0),
+             hlth.vgd = ifelse(PHSTAT == 2,1,0),
+             hlth.gd  = ifelse(PHSTAT == 3,1,0),
+             hlth.fair = ifelse(PHSTAT == 4,1,0),
+             hlth.poor = ifelse(PHSTAT == 5,1,0),
+             hlth.unk = ifelse(PHSTAT > 5,1,0),
+             ins = (ifelse(COVER < 3,1,0)),
+             limit = ifelse(FLA1AR == 1,1,0),
+             limit.sad = ifelse(FLA1AR >1,0,
+                                ifelse(AFLHCA17 == 1,1,0)),
+             limit.atma = ifelse(FLA1AR >1,0,
+                                 ifelse(AFLHCA11 == 1, 1,0)),
+             limit.canc = ifelse(FLA1AR >1,0,
+                                 ifelse(AFLHCA12 == 1,1,0)),
+             limit.diab = ifelse(FLA1AR >1,0,
+                                 ifelse(AFLHCA10 == 1,1,0)),
+             limit.hypr = ifelse(FLA1AR >1,0,
+                                 ifelse(AFLHCA9 == 1, 1,0)),
+             limit.art = ifelse(FLA1AR >1,0,
+                                 ifelse(AFLHCA3 == 1, 1,0)),
+             limit.hrt = ifelse(FLA1AR >1,0,
+                                ifelse(AFLHCA7 == 1,1,0)),
+             limit.circ = ifelse(FLA1AR >1,0,
+                                 ifelse(AFLHC21_ ==1,1,0)),
+             limit.mtb = ifelse(FLA1AR >1,0,
+                                ifelse(AFLHC22_ == 1, 1, 0)),
+             limit.urn = ifelse(FLA1AR >1,0,
+                                ifelse(AFLHC25_ ==1,1,0)),
+             inc.pvty = ifelse(ERNYR_P < 4, 1, 0),
+             inc.low = ifelse(ERNYR_P == 4, 1,
+                              ifelse(ERNYR_P == 5,1,
+                                     ifelse(ERNYR_P == 6,1,
+                                            ifelse(ERNYR_P ==7,1,0)))),
+             inc.mid = ifelse(ERNYR_P == 8,1,
+                              ifelse(ERNYR_P == 9,1,
+                                     ifelse(ERNYR_P == 10,1,0))),
+             inc.high = ifelse(ERNYR_P == 11, 1 ,0),
+             inc.unk = ifelse(ERNYR_P > 11, 1, 0),
+             age = AGE_P.x)
+
+##select dummy variables variables for model and convert into data frame, remove incomplete observations
+
+dat0<- select(nh2,
+              rx, nrx, male, 
+              race.hs, race.wt, race.ot, 
+              ls.obs, ls.smoke, ls.alc,
+              hlth.exc, hlth.vgd, hlth.gd, hlth.fair, hlth.poor, hlth.unk,
+              ins,
+              limit, limit.sad, limit.atma, limit.canc, limit.diab, limit.hypr,
+              limit.art, limit.circ, limit.mtb, limit.urn,
+              inc.pvty, inc.low, inc.mid, inc.high, inc.unk,
+              age)
+
+
+dat<-as.data.frame(dat0)
+data<- na.omit(dat)
+
+
+str(data)      #display structure of dataset
+summary(data)  #summary stats of each numeric variable
+
+stargazer(data, type = "text")
+
+##OLS & Logit model for inability to afford medication
+
+attach(data)
+xtab<- table(rx, nrx)
+xtab
+prop.table(xtab)*100
+
+##Models for foregoing medication due to cost and prescribed medication
+
+ols.nrx <- lm(nrx ~ male + race.hs + race.wt + race.ot +
+                ls.obs + ls.smoke + ls.alc 
+              + hlth.exc + inc.high
+                + hlth.vgd + hlth.fair + hlth.gd + hlth.poor +
+                ins +  limit +
+                inc.pvty + inc.low + inc.mid + age, data = data)
+
+logit.nrx <- glm(nrx ~ male + race.hs + race.ot +
+                 ls.obs + ls.smoke + ls.alc + 
+                 hlth.vgd + hlth.fair + hlth.gd + hlth.poor +
+                 ins + limit + 
+                 inc.pvty + inc.low + inc.mid + age,
+               data = data,
+               family = binomial("logit"))
+
+ols.rx <- lm(rx ~ male + race.hs + race.wt + race.ot +
+                ls.obs + ls.smoke + ls.alc 
+              + hlth.exc + inc.high
+              + hlth.vgd + hlth.fair + hlth.gd + hlth.poor +
+                ins +  limit +
+                inc.pvty + inc.low + inc.mid + age, data = data)
+
+logit.rx <- glm(rx ~ male + race.hs + race.ot +
+                   ls.obs + ls.smoke + ls.alc + 
+                   hlth.vgd + hlth.fair + hlth.gd + hlth.poor +
+                   ins + limit + 
+                   inc.pvty + inc.low + inc.mid + age,
+                 data = data,
+                 family = binomial("logit"))
+
+#residual plots
+plot(fitted(ols.nrx), resid(ols.nrx))
+plot(fitted(ols.rx), resid(ols.rx))
+
+
+##OLS & Logit models for limitations and lifestyle behaviors
+
+logit.ls <- glm(limit ~ ls.obs + ls.smoke + ls.alc, data = data,
+                family = binomial("logit"))
+ols.ls <- lm(limit ~ ls.obs + ls.smoke + ls.alc, data = data)
+
+logit.ls.rx <- glm(rx ~ ls.obs + ls.smoke + ls.alc, data = data,
+                family = binomial("logit"))
+ols.ls.rx <- lm(rx ~ ls.obs + ls.smoke + ls.alc, data = data)
+
+##models for limitation by condition
+
+logit.limit.rx <- glm(rx ~ limit.sad + limit.atma + limit.canc + limit.diab + limit.hypr+
+                   limit.art + limit.circ + limit.mtb + limit.urn,data = data,
+                   family = binomial("logit"))
+
+logit.limit.nrx <- glm(nrx ~ limit.sad + limit.atma + limit.canc + limit.diab + limit.hypr +
+                   limit.art + limit.circ + limit.mtb + limit.urn,data = data,
+                   family = binomial("logit"))
+
+
+
+
+
+###test for hetero
+
+#Ho: Homoscedasticity  
+#Ha: Heteroscedasticity
+
+bptest(ols.rx)
+bptest(ols.nrx)
+bptest(logit.rx)
+bptest(logit.nrx)
+
+#Generate Loglikelihood
+logLik(logit.rx)
+
+
+##Regression results
+
+stargazer(ols.rx, logit.rx, ols.nrx, logit.nrx, 
+          type = "text",
+          title = "Regression Results",
+          out = "table3.txt",
+          dep.var.labels= c('Prescription (12 mos)', 'unable to afford'))
+
+stargazer(logit.ls, ols.ls, type = "text",
+          title = "Table 4. Lifestyle Behaviors",
+          dep.var.labels = "Any limitation in activity",
+          covariate.labels = c("Obesity", "Current Smoker", "Weekly Drinker"),
+          out = "table4.txt")
+
+stargazer(logit.ls.rx, ols.ls.rx, type = "text",
+          title = "Table 4. Lifestyle Behaviors",
+          dep.var.labels = "Any limitation in activity",
+          covariate.labels = c("Obesity", "Current Smoker", "Weekly Drinker"),
+          out = "table4.txt")
+
+stargazer(logit.limit.rx, logit.limit.nrx, type = "text",
+          title = "Table 4. Limitations and drug access",
+          dep.var.labels = c("Prescription", "Unable to Afford"),
+          covariate.labels = c("Depression", "Asthma", "Cancer", "Diabetes", "Hypertension",
+                                "Arthritis", "Circulatory", "Metabolic", "Urinary"),
+          out = "table4.txt")
+
+logitmfx(limit ~ ls.obs + ls.smoke + ls.alc , data = data, atmean=FALSE)
+logitmfx(rx ~ ls.obs + ls.smoke + ls.alc , data = data, atmean=FALSE)
+
+
+
+summary(logit.rx)
+summary(margins(logit.rx, type = "response"))
+summary(margins(logit.nrx, type = "response"))
+summary(margins(logit.limit.rx, type = "response"))
+summary(margins(logit.limit.nrx, type = "response"))
