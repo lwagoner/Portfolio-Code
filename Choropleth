@@ -1,0 +1,87 @@
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
+import pandas as pd
+import plotly.graph_objs as go
+from dash.dependencies import Input, Output
+
+data = pd.read_csv(
+    'https://raw.githubusercontent.com/lwagoner/tools/master/elec.csv', header = 1)
+col = ['year', 'state', 'industry', 'residential', 'commercial', 'industrial', 'transportation', 'other', 'total']
+data.columns = col
+
+## Select Total Electric observations only
+dat0 = data.loc[data['industry'] == 'Total Electric Industry']
+df = dat0.loc[dat0['year'] >= 1990]
+
+plotdata1 = go.Choropleth(
+        locations = df['state'],
+        z = df['residential'],
+        locationmode = 'USA-states',
+        autocolorscale = False,
+        colorscale = 'Picnic',
+        showscale = True,
+        colorbar_title = "KW/Hr",
+    )
+
+layout1 = go.Layout(
+    title = "Average Residential Electricity Prices 1970-2018",
+    geo_scope = 'usa')
+    
+
+figure1 = go.Figure(data= plotdata1, layout=layout1)
+
+app = dash.Dash(__name__)
+
+app.layout = html.Div([
+    html.H1("Electric prices"),
+    dcc.Graph(id='electricity', figure = figure1),
+    dcc.RadioItems(
+        id = 'sector',
+        options = [{'label': 'commercial', 'value': 'commercial'},
+                   {'label': 'residential', 'value': 'residential'},
+                   {'label': 'industrial', 'value': 'industrial'},
+                   {'label': 'total', 'value' : 'total'}],
+        value='total',
+        labelStyle={'display': 'inline-block'}
+        ),
+    dcc.Slider(
+        id='year-slider',
+        min=df['year'].min(),
+        max=df['year'].max(),
+        value=df['year'].min(),
+        marks={str(year): str(year) for year in df['year'].unique()},
+        step=None
+    )
+])        
+
+
+@app.callback(Output('electricity','figure'),
+              [Input('year-slider','value'),
+               Input('sector', 'value')])
+
+def update_figure(selected_year, sector):
+    filtered_df = df[df.year == selected_year]
+    traces = []
+    for i in filtered_df.state.unique():
+        traces.append(go.Choropleth(
+        locations = filtered_df['state'],
+        z = filtered_df[sector],
+        locationmode = 'USA-states',
+        autocolorscale = False,
+        colorscale = 'Picnic',
+        showscale = True,
+        colorbar_title = "KW/Hr",
+    ))
+
+    return {
+        'data': traces,
+        'layout': go.Layout(
+            title = "Average Residential Price",
+            geo_scope = 'usa'
+        )
+    }
+            
+
+if __name__ == '__main__':
+  app.run_server()
