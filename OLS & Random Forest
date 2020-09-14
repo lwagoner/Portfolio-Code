@@ -1,0 +1,19 @@
+import pandas as pd
+import patsy as pt
+import numpy as np
+import statsmodels.formula.api as sm
+from sklearn import tree
+from sklearn.metrics import accuracy_score
+from sklearn.ensemble import RandomForestClassifier
+
+
+data = pd.read_csv("https://raw.githubusercontent.com/dustywhite7/Econ8320/master/AssignmentData/assignment12Data.csv")
+data.fillna(0)
+eqn = "Value ~ Year  + DebtToValue + Revenues + OperatingIncome + Expansion + TVDeal + LaborContract + Playoffs + SuperBowl"
+y1, x1 = pt.dmatrices(eqn, data = data)
+valueReg = sm.ols(eqn, data = data).fit()
+
+clf = RandomForestClassifier(n_estimators=100)
+eqn1 = "Playoffs ~ Year"
+y2, x2 = pt.dmatrices(eqn1, data = data)
+playoffForest = clf.fit(x2, y2)
