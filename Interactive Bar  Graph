@@ -1,20 +1,32 @@
- import dash
+##This code will construct a interactive dash web application plotting commmercial, residential and industrial electricity prices over time by state from 1990-2020.
+
+##Import libraries
+
+import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
 import plotly.graph_objs as go
 from dash.dependencies import Input, Output
 
+##Retrieve data, rename columns and compile data into a dataframe for manipulation
+
 data = pd.read_csv(
     'https://raw.githubusercontent.com/lwagoner/tools/master/elec.csv', header = 1)
 col = ['year', 'state', 'industry', 'residential', 'commercial', 'industrial', 'transportation', 'other', 'total']
 data.columns = col
 
-## Select Total Electric observations only
+## Aggregate electric industry over the last 20 years 
+
 dat0 = data.loc[data['industry'] == 'Total Electric Industry']
 df = dat0.loc[dat0['year'] >= 1990]
 
+##intiate dash object
+
 app = dash.Dash(__name__)
+
+##Create the layout of the dash bar with radio buttons to select commercial, residential, or industrial electricity prices
+##and a drop down menu to select states
 
 app.layout = html.Div([
     html.H1 ("Average Price of electricity"),
@@ -40,10 +52,15 @@ app.layout = html.Div([
     
     style={'width': '75%', 'display': 'inline-block'})
 
+##
+
 @app.callback(
     Output('bar', 'figure'),
     [Input('year-slider', 'value'),
      Input('sector', 'value')])
+
+
+##Create line trace
 
 def update_figure(year, sector):
     if year =="All":
