@@ -1,9 +1,18 @@
+##This Code will create an interactive Choropleth visualization of electricity prices across the United States using the Dash module in Python. 
+##The user can select which year to view. The user can also select whether they would like to view residential, commerical, industrial
+## or total electricity price.
+
+
+##Import Modules
+
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
 import plotly.graph_objs as go
 from dash.dependencies import Input, Output
+
+##Retrieve data file, clean data and create new columns
 
 data = pd.read_csv(
     'https://raw.githubusercontent.com/lwagoner/tools/master/elec.csv', header = 1)
@@ -13,6 +22,8 @@ data.columns = col
 ## Select Total Electric observations only
 dat0 = data.loc[data['industry'] == 'Total Electric Industry']
 df = dat0.loc[dat0['year'] >= 1990]
+
+##Intiate Choropleth graph of U.S. States
 
 plotdata1 = go.Choropleth(
         locations = df['state'],
@@ -32,6 +43,9 @@ layout1 = go.Layout(
 figure1 = go.Figure(data= plotdata1, layout=layout1)
 
 app = dash.Dash(__name__)
+
+
+##Creat app layout
 
 app.layout = html.Div([
     html.H1("Electric prices"),
@@ -55,6 +69,7 @@ app.layout = html.Div([
     )
 ])        
 
+##Add in interactive slider and sector selector values
 
 @app.callback(Output('electricity','figure'),
               [Input('year-slider','value'),
