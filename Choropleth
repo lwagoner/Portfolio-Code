@@ -15,7 +15,7 @@ from dash.dependencies import Input, Output
 ##Retrieve data file, clean data and create new columns
 
 data = pd.read_csv(
-    'https://raw.githubusercontent.com/lwagoner/tools/master/elec.csv', header = 1)
+    'https://raw.githubusercontent.com/lwagoner/Portfolio/master/elec.csv', header = 1)
 col = ['year', 'state', 'industry', 'residential', 'commercial', 'industrial', 'transportation', 'other', 'total']
 data.columns = col
 
