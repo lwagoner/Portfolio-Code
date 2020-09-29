@@ -6,7 +6,7 @@ from datetime import datetime
 
 
 season = pd.read_csv("https://raw.githubusercontent.com/dustywhite7/Econ8310/master/AssignmentData/assignment2.csv")
-playoffs = pd.read_csv("https://raw.githubusercontent.com/dustywhite7/Econ8310/master/AssignmentData/assignment2test.csv")
+playoffs = pd.read_csv("https://raw.githubusercontent.com/lwagoner/Portfolio/master/data/nfltest")
 
 data = season.append(playoffs)
 data1 = data.set_index('season')
