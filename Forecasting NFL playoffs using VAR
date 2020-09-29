@@ -1,0 +1,93 @@
+Assignment 2
+This assignment will make use of the models covered in Weeks 4 to 6. Models include:
+
+Vector AutoRegressive Models (VAR) Generalized Additive Models (GAM) Panel Regression Models
+
+Your job will be to forecast weekly points scored for each NFL team. You will probably need to restructure the data in order to make appropriate forecasts. You will be graded based on the following:
+
+Your code executing without errors
+Storing your models to make predictions on new data
+Making reasonable predictions based on the data provided
+Forecasting a score for each team during each week
+To complete this assignment, your code will need to contain the following:
+
+A forecasting algorithm named "model" using the statsmodels or pyGAM implementation of one of the models covered in weeks 4 to 6. You should use points scored by the team as the dependent variable, and may or may not use exogenous variables from the remainder of the dataset. The training data is stored at the following URL: https://github.com/dustywhite7/Econ8310/raw/master/AssignmentData/assignment2.csv
+
+A fitted model named "modelFit". This should be a model instance capable of generating forecasts using new data in the same shape as the data used in part (1).
+
+A Data Frame of forecasts using the data from the test period named "pred". Your data should be structured so that each row contains columns named 'week', 'team', and 'points'. 'Week' should contain the number value from the week column in the test data, 'team' should be the 2-3 letter abbreviation used to represent each unique team, and 'points' should include your predicted points for the listed team in the indicated week.
+Make sure that your forecast includes predicted points for EACH team in EACH game during the 2015 postseason (weeks 18-21)! The Data Frame should have 3 columns and 22 rows. The data from which to generate forecasts (if you used exogenous variables) is stored at the following URL: https://github.com/dustywhite7/Econ8310/raw/master/AssignmentData/assignment2test.csv
+
+Note: While all models from weeks 4 to 6 are available to you, they may not all be good fits for the data. I recommend considering the data carefully, then choosing 2-3 models to try. See which models seem to perform best on this data, and implement the best performer for the final submission of the project.
+
+Run this cell, then restart the kernel  ↓ 
+! pip install --upgrade statsmodels
+Requirement already up-to-date: statsmodels in /opt/conda/lib/python3.7/site-packages (0.12.0)
+Requirement already satisfied, skipping upgrade: numpy>=1.15 in /opt/conda/lib/python3.7/site-packages (from statsmodels) (1.18.5)
+Requirement already satisfied, skipping upgrade: pandas>=0.21 in /opt/conda/lib/python3.7/site-packages (from statsmodels) (1.0.4)
+Requirement already satisfied, skipping upgrade: patsy>=0.5 in /opt/conda/lib/python3.7/site-packages (from statsmodels) (0.5.1)
+Requirement already satisfied, skipping upgrade: scipy>=1.1 in /opt/conda/lib/python3.7/site-packages (from statsmodels) (1.3.0)
+Requirement already satisfied, skipping upgrade: pytz>=2017.2 in /opt/conda/lib/python3.7/site-packages (from pandas>=0.21->statsmodels) (2020.1)
+Requirement already satisfied, skipping upgrade: python-dateutil>=2.6.1 in /opt/conda/lib/python3.7/site-packages (from pandas>=0.21->statsmodels) (2.8.1)
+Requirement already satisfied, skipping upgrade: six in /opt/conda/lib/python3.7/site-packages (from patsy>=0.5->statsmodels) (1.13.0)
+WARNING: You are using pip version 20.1.1; however, version 20.2.3 is available.
+You should consider upgrading via the '/opt/conda/bin/python3 -m pip install --upgrade pip' command.
+Your predictions should be in a DataFrame like the one below:
+week	team	points
+0	18	KC	NaN
+1	18	HOU	NaN
+2	18	PIT	NaN
+3	18	CIN	NaN
+4	18	SEA	NaN
+5	18	MIN	NaN
+6	18	GB	NaN
+7	18	WAS	NaN
+8	19	KC	NaN
+9	19	NE	NaN
+10	19	GB	NaN
+11	19	ARI	NaN
+12	19	SEA	NaN
+13	19	CAR	NaN
+14	19	PIT	NaN
+15	19	DEN	NaN
+16	20	NE	NaN
+17	20	DEN	NaN
+18	20	ARI	NaN
+19	20	CAR	NaN
+20	21	CAR	NaN
+21	21	DEN	NaN
+Put your submission in the cell below  ↓ 
+import pandas as pd
+import numpy as np
+from statsmodels.tsa.api import VAR
+import statsmodels.tsa.stattools as st
+from datetime import datetime
+
+
+season = pd.read_csv("https://raw.githubusercontent.com/dustywhite7/Econ8310/master/AssignmentData/assignment2.csv")
+playoffs = pd.read_csv("https://raw.githubusercontent.com/dustywhite7/Econ8310/master/AssignmentData/assignment2test.csv")
+
+data = season.append(playoffs)
+data1 = data.set_index('season')
+varData = data1[['pointSpreadAway', 'pointsAway', 'pointsHome']][:-11]
+model = VAR(varData)
+
+modelFit = model.fit(11)
+
+fcast = modelFit.forecast(varData.values, steps = 11)
+
+nextPer = pd.DataFrame(fcast,
+                      columns = varData.columns)
+
+playoffs['pointsAway'], playoffs['pointsHome'] = nextPer['pointsAway'], nextPer['pointsHome']
+
+new1 = pd.DataFrame({'team': pd.concat([playoffs.awayTeam, playoffs.homeTeam]), 'points': pd.concat([playoffs.pointsAway, playoffs.pointsHome])}).sort_index()
+
+new1['week'] = playoffs['week']
+
+pred = new1[['week', 'team', 'points']]
+
+pred.shape
+/opt/conda/lib/python3.7/site-packages/statsmodels/tsa/base/tsa_model.py:579: ValueWarning: An unsupported index was provided and will be ignored when e.g. forecasting.
+  ' ignored when e.g. forecasting.', ValueWarning)
+(22, 3)
