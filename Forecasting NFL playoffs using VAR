@@ -1,21 +1,37 @@
+##Import libraries
+
 import pandas as pd
 import numpy as np
 from statsmodels.tsa.api import VAR
 import statsmodels.tsa.stattools as st
 from datetime import datetime
 
+##call in seasonal and playoff data
 
 season = pd.read_csv("https://raw.githubusercontent.com/lwagoner/Portfolio/master/data/nfl")
 playoffs = pd.read_csv("https://raw.githubusercontent.com/lwagoner/Portfolio/master/data/nfltest")
 
+##append playoff data to season data and set index for time-series
+
 data = season.append(playoffs)
 data1 = data.set_index('season')
+
+##create Vector Autoregression Data Frame, omit playoffs so we can forecast
+
 varData = data1[['pointSpreadAway', 'pointsAway', 'pointsHome']][:-11]
+
+##create VAR model
+
 model = VAR(varData)
 
+##fit the model
 modelFit = model.fit(11)
 
+##generate a forecast
+
 fcast = modelFit.forecast(varData.values, steps = 11)
+
+##Generate a data frame from our forecast
 
 nextPer = pd.DataFrame(fcast,
                       columns = varData.columns)
@@ -25,6 +41,8 @@ playoffs['pointsAway'], playoffs['pointsHome'] = nextPer['pointsAway'], nextPer[
 new1 = pd.DataFrame({'team': pd.concat([playoffs.awayTeam, playoffs.homeTeam]), 'points': pd.concat([playoffs.pointsAway, playoffs.pointsHome])}).sort_index()
 
 new1['week'] = playoffs['week']
+
+##predict teams score
 
 pred = new1[['week', 'team', 'points']]
 
