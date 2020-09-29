@@ -5,7 +5,7 @@ import statsmodels.tsa.stattools as st
 from datetime import datetime
 
 
-season = pd.read_csv("https://raw.githubusercontent.com/dustywhite7/Econ8310/master/AssignmentData/assignment2.csv")
+season = pd.read_csv("https://raw.githubusercontent.com/lwagoner/Portfolio/master/data/nfl")
 playoffs = pd.read_csv("https://raw.githubusercontent.com/lwagoner/Portfolio/master/data/nfltest")
 
 data = season.append(playoffs)
