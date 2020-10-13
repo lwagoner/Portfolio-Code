@@ -4,7 +4,7 @@ import plotly.offline as pyo
 import plotly.graph_objs as go
 
 # Read in data file
-data = pd.read_csv("https://raw.githubusercontent.com/lwagoner/Portfolio/master/elec.csv", header = 1)
+data = pd.read_csv("https://raw.githubusercontent.com/lwagoner/Data/master/elec.csv", header = 1)
 
 # Re-name columns
 col = ['year', 'state', 'industry', 'residential', 'commercial', 'industrial', 'transportation', 'other', 'total']
