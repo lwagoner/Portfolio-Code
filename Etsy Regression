@@ -23,28 +23,13 @@ data.columns = col
 phish.columns = col
 grateful.columns = col
 
-
-# In[20]:
-
-
 data = data.drop(['description'], axis =1)
-
-
-# In[26]:
-
 
 ## create new category for the length of a items name (characters)
 data['len_name'] = [len(i) for i in data['name']]
 
-
-# In[27]:
-
-
 ##Parse category to collect only the first category listing
 result = [re.search(r'.+?(?= zzz)', i) for i in data['category']]
-
-
-# In[28]:
 
 
 ##Parse through results to generate a new column for type of cateogry
@@ -59,14 +44,9 @@ for i in result:
 data['new_category'] = search
 
 
-# In[29]:
-
+##summary stats of the data
 
 data.describe()
-
-
-# In[30]:
-
 
 ##collect highest price and most sold items for each band
 data.loc[grateful['sales'].idxmax()]
@@ -75,39 +55,23 @@ data.loc[grateful['price'].idxmax()]
 data.loc[phish['sales'].idxmax()]
 data.loc[phish['price'].idxmax()]
 
-
-# In[31]:
-
-
 ##OLS regression
 reg = sm.ols("sales ~ rating + price + len_name + C(new_category)", data=data).fit()
 reg.summary()
 
 
-# In[32]:
-
-
 ##total items by category
+
 x = data['new_category']
 fig = go.Figure(data=[go.Histogram(x=x)])
 fig.show()
-
-
-# In[33]:
-
 
 fig1 = go.Figure([go.Bar(x=data['rating'], y=data['sales'])])
 fig1.show()
 
 
-# In[34]:
-
-
 fig2 = go.Figure([go.Bar(x=data['category'], y=data['sales'])])
 fig2.show()
-
-
-# In[14]:
 
 
 fig3 = go.Figure([go.Bar(x=data['price'], y=data['sales'])])
