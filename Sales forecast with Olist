@@ -1,0 +1,586 @@
+import statsmodels.api as sm
+import patsy as pt
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import statsmodels.tsa.stattools as st
+from fbprophet import Prophet
+from pygam import LinearGAM, s, f
+from plotly import tools
+import plotly.offline as py
+import plotly.graph_objs as go
+
+# Read the datasets 
+orders = pd.read_csv("olist_orders_dataset.csv")
+order_items = pd.read_csv("olist_order_items_dataset.csv")
+order_reviews = pd.read_csv("olist_order_reviews_dataset.csv")
+order_payments = pd.read_csv("olist_order_payments_dataset.csv")
+products = pd.read_csv("olist_products_dataset.csv")
+product_category_name_translation = pd.read_csv('product_category_name_translation.csv')
+
+# Merge data set
+
+merge1 = pd.merge(order_items,order_reviews, on = ["order_id"])
+merge1.to_csv("merge1.csv")
+
+merge2 = pd.merge(merge1,order_payments, on = ["order_id"])
+merge2.to_csv("merge2.csv")
+
+merge3 = pd.merge(merge2,products, on = ["product_id"])
+merge3.to_csv("merge3.csv")
+
+merge4 = pd.merge(merge3,orders, on = ["order_id"])
+merge4.to_csv("merge4.csv")
+
+merge4['order_purchase_timestamp'] = pd.to_datetime(merge4['order_purchase_timestamp'], format='%Y-%m-%d %H:%M:%S')
+merge4['order_delivered_customer_date'] = pd.to_datetime(merge4['order_delivered_customer_date'], format='%Y-%m-%d %H:%M:%S')
+merge4['order_estimated_delivery_date'] = pd.to_datetime(merge4['order_estimated_delivery_date'], format='%Y-%m-%d %H:%M:%S')
+
+merge4['order_purchase_date'] = merge4.order_purchase_timestamp.dt.date
+merge4['order_delivered_customer_date'] = merge4.order_delivered_customer_date.dt.date
+merge4['order_estimated_delivery_date'] = merge4.order_estimated_delivery_date.dt.date
+
+
+merge4['order_purchase_month'] = pd.to_datetime(merge4['order_purchase_timestamp']).dt.strftime('%Y-%m')
+merge4['order_purchase_year'] = merge4.order_purchase_timestamp.dt.year
+
+merge5 = pd.merge(merge4,product_category_name_translation, on = ["product_category_name"])
+merge5.to_csv("merge5.csv")
+
+
+# Select columns
+
+data = merge5[['order_id', 'product_id', 'seller_id','order_purchase_month', 'order_purchase_year', 'order_item_id',
+               'order_purchase_timestamp', 'order_delivered_customer_date', 'order_estimated_delivery_date',
+               'order_purchase_date','order_delivered_customer_date','order_estimated_delivery_date', 'order_status',
+               'price', 'payment_value','freight_value',
+               'review_score', 'payment_type', 'payment_installments', 
+               'product_category_name', 'product_description_lenght', 'product_photos_qty', 'product_category_name_english']].dropna()
+data['category'] = data['product_category_name_english']
+
+data = pd.DataFrame(data= data)
+
+# Select rows if order_status = 'delivered'
+data = data.loc[data['order_status'] == "delivered" ]
+
+# Drop the data before January 2017 because the sales in November and December 2016 are 0 and 1 respectively
+
+data = data.loc[data['order_purchase_year'] > 2016 ]
+data
+
+
+# Forecast sales next 3 months - by the monthly sales 
+# Count the sales by the items sold (order_item_id) in a day/month 
+
+data1 = data[['order_purchase_month','order_item_id']]
+data1
+# Getting the sales per month as the total number of items sold in a month
+df = data1.groupby('order_purchase_month').count()
+df['sales'] = df['order_item_id']
+df['month'] = data['order_purchase_month'].unique()
+df = df.drop(columns='order_item_id')
+df['month'] = df.index
+df = df[['month','sales']]
+
+
+# Recreate the data frame with correct labels
+data1 = pd.DataFrame(df.values, columns = ['ds','y'])
+data1
+
+# Initialize Prophet instance and fit to data
+
+m = Prophet(changepoint_prior_scale=0.5)
+# Higher prior values will tend toward overfitting
+#     Lower values will tend toward underfitting
+
+m.fit(data1)
+# Create timeline for 1 year in future, 
+#   then generate predictions based on that timeline
+
+future = m.make_future_dataframe(periods=3)
+forecast = m.predict(future)
+forecast
+
+# Create plots of forecast and truth, 
+#   as well as component breakdowns of the trends
+
+plt = m.plot(forecast)
+plt.show()
+
+comp = m.plot_components(forecast)
+comp.show()
+
+
+
+
+forecast
+
+
+
+# Forecast sales next 3 months - by the daily sales
+
+data2 = data[['order_purchase_date','order_item_id']]
+data2
+# Getting the sales per month as the total number of items sold in a month
+df = data2.groupby('order_purchase_date').count()
+df['sales'] = df['order_item_id']
+df['date'] = data['order_purchase_date'].unique()
+df = df.drop(columns='order_item_id')
+df['date'] = df.index
+df = df[['date','sales']]
+df
+
+# Recreate the data frame with correct labels
+data1 = pd.DataFrame(df.values, columns = ['ds','y'])
+data1
+
+# Initialize Prophet instance and fit to data
+
+m = Prophet(changepoint_prior_scale=0.5)
+# Higher prior values will tend toward overfitting
+#     Lower values will tend toward underfitting
+
+m.fit(data1)
+# Create timeline for 1 year in future, 
+#   then generate predictions based on that timeline
+
+future = m.make_future_dataframe(periods=95)
+forecast = m.predict(future)
+forecast
+
+# Create plots of forecast and truth, 
+#   as well as component breakdowns of the trends
+
+plt = m.plot(forecast)
+plt.show()
+
+comp = m.plot_components(forecast)
+comp.show()
+
+forecast
+
+
+# ARIMA model
+# Plot the data
+px.line(df, x='date', y='sales',
+       labels = {
+           'date' : 'Date',
+           'sales' : 'Items sold per day'
+       })
+
+
+df['salesdiff'] = df['sales'].diff()
+df
+px.line(df, x='date', y='salesdiff',
+       labels = {
+           'date' : 'Date',
+           'salesiff' : 'Differenced of sales'
+       })
+
+
+import statsmodels.api as sm
+
+model = sm.tsa.ARIMA(df['sales'], (1,1,0)) 
+		  # specifying an ARIMA(1,1,0) model
+reg = model.fit() # Fit the model using standard params
+res = reg.resid   # store the residuals as res
+reg.summary()
+
+
+plt = sm.graphics.tsa.plot_acf(df['sales'].diff().dropna(), lags=30)
+plt.show()
+
+
+plt = sm.graphics.tsa.plot_acf(df['sales'], lags=30)
+plt.show()
+
+fcst = reg.forecast(steps=95)
+fcst
+
+
+# Calculate the mean squared errors and root mean squared errors in prophet and ARIMA models
+# to compare how well they perform forecasting
+
+# Calculate MSE nad RMSE of FB Prophet
+from fbprophet.diagnostics import cross_validation
+df_cv = cross_validation(m, initial='95 days', period='95 days', horizon = '500 days')
+df_cv.head()
+
+from fbprophet.diagnostics import performance_metrics
+df_p = performance_metrics(df_cv)
+df_p.head()
+
+
+
+
+# Calculate MSE and RMSE in Arima
+fcst = reg.forecast(steps=95)
+type(fcst[0])
+
+from sklearn.metrics import mean_squared_error
+from statsmodels.tools.eval_measures import rmse
+
+# Taking 95 samples
+arima_rmse_error1 = rmse(df['sales'].tail(95),fcst[0])
+arima_mse_error1 = arima_rmse_error1**2
+arima_mse_error1
+print(f'MSE Error:{arima_mse_error1} \nRMSE Error:{arima_rmse_error1}')
+
+
+fig = reg.plot_predict(start=len(df)-125, end=len(df)+95)
+fig.show()
+
+:
+
+
+df = data.groupby('category').count()
+categories = df.sort_values(by = 'order_item_id', ascending = False)
+categories['sales'] = categories['order_item_id']
+
+##Sales dataframe
+
+totalSales = pd.DataFrame(categories['sales'])
+
+##total sales
+totalSales
+
+##visualizing total sales
+fig = px.bar(totalSales, x= totalSales.index, y='sales')
+fig.show()
+
+###Best selling categories
+
+best = totalSales.iloc[:3]
+best
+
+categories
+
+
+# Forecast sales next 3 months - for the 3 best selling
+
+data2 = data[['order_purchase_date','order_item_id']]
+data2
+# Getting the sales per month as the total number of items sold in a month
+df = data2.groupby('order_purchase_date').count()
+# df['sales'] = df['order_item_id']
+# df['date'] = data['order_purchase_date'].unique()
+# df = df.drop(columns='order_item_id')
+# df['date'] = df.index
+# df = df[['date','sales']]
+df
+
+
+
+# Forecast sales next 3 months - for the 3 best selling
+
+data2 = data[['order_purchase_date','order_item_id']]
+data2
+
+# Getting the sales per month as the total number of items sold in a month
+
+df = data2.groupby('order_purchase_date').count()
+df['sales'] = df['order_item_id']
+df['date'] = data['order_purchase_date'].unique()
+df = df.drop(columns='order_item_id')
+df['date'] = df.index
+df = df[['date','sales']]
+df
+
+# Recreate the data frame with correct labels
+data1 = pd.DataFrame(df.values, columns = ['ds','y'])
+data1
+
+
+top3bestSelling = categories.iloc[:3]
+top3bestSelling
+
+
+
+categories
+
+
+
+
+#Determine the fastest-growing category, and create a forecast for its growth
+data3 = data[['order_purchase_date','category', 'order_item_id']]
+
+#data2['year'] = pd.DatetimeIndex(data2['order_purchase_date']).year
+#data2['month'] = pd.DatetimeIndex(data2['order_purchase_date']).month
+data3['date'] = pd.to_datetime(data['order_purchase_timestamp'])
+
+catSales = data3.set_index('date').groupby([pd.Grouper(freq='M'), 'category']).count()
+sales = pd.DataFrame(catSales)
+sales['count'] = sales['order_item_id']
+# sales_categorized = sales
+# sales_categorized = sales_categorized.drop(columns= ['order_purchase_date', 'order_item_id'])
+# sales_categorized
+sales = sales.drop(columns = 'order_purchase_date')
+sales1 = sales.reset_index()
+sales1
+
+
+# Create data frame of sales of each category each day
+
+sales1["date"] = pd.to_datetime(sales1["date"])
+sales2 = sales1.set_index(pd.DatetimeIndex(sales1['date']))
+sales2
+category = sales2['category'].unique()
+date = sales2.index.unique()
+test = pd.DataFrame(columns = category.T,
+                    index = date)
+test
+
+for i in test.columns:
+    test[i] = sales2[sales2['category'] == str(i)]['count']
+
+df3 = test.fillna(0)    
+df3 # data frame of sales of each category each day
+
+# Calculate the percentage change of sales 
+data_pct = df3.pct_change()
+newdata = pd.DataFrame(data_pct)
+newdata = newdata.replace([np.inf, -np.inf], np.nan)
+newdata1 = newdata.fillna(0)
+newdata1  # data frame of percantage change of sales of each category each day
+
+
+# Forecast the growth in the 3 best selling categories
+growth_bestselling = newdata1[['bed_bath_table', 'health_beauty', 'sports_leisure']]
+
+growth_bestselling.reset_index('date')
+growth_bestselling['date']= growth_bestselling.index
+growth_bestselling1 = growth_bestselling[['date', 'bed_bath_table']]
+
+# Recreate the data frame with correct labels
+data1 = pd.DataFrame(growth_bestselling1.values, columns = ['ds','y'])
+data1
+
+# Initialize Prophet instance and fit to data
+
+m = Prophet(changepoint_prior_scale=0.5)
+# Higher prior values will tend toward overfitting
+#     Lower values will tend toward underfitting
+
+m.fit(data1)
+# Create timeline for 1 year in future, 
+#   then generate predictions based on that timeline
+
+future = m.make_future_dataframe(periods=95)
+forecast = m.predict(future)
+forecast
+
+# Create plots of forecast and truth, 
+#   as well as component breakdowns of the trends
+
+plt = m.plot(forecast)
+plt.show()
+
+comp = m.plot_components(forecast)
+comp.show()
+
+forecast
+
+
+growth_bestselling2 = growth_bestselling[['date', 'health_beauty']]
+
+# Recreate the data frame with correct labels
+data2 = pd.DataFrame(growth_bestselling2.values, columns = ['ds','y'])
+data2
+
+# Initialize Prophet instance and fit to data
+
+m = Prophet(changepoint_prior_scale=0.5)
+# Higher prior values will tend toward overfitting
+#     Lower values will tend toward underfitting
+
+m.fit(data2)
+# Create timeline for 1 year in future, 
+#   then generate predictions based on that timeline
+
+future = m.make_future_dataframe(periods=95)
+forecast = m.predict(future)
+forecast
+
+# Create plots of forecast and truth, 
+#   as well as component breakdowns of the trends
+
+plt = m.plot(forecast)
+plt.show()
+
+comp = m.plot_components(forecast)
+comp.show()
+
+forecast
+
+
+growth_bestselling3 = growth_bestselling[['date', 'sports_leisure']]
+
+# Recreate the data frame with correct labels
+data3 = pd.DataFrame(growth_bestselling3.values, columns = ['ds','y'])
+data3
+
+# Initialize Prophet instance and fit to data
+
+m = Prophet(changepoint_prior_scale=0.5)
+# Higher prior values will tend toward overfitting
+#     Lower values will tend toward underfitting
+
+m.fit(data3)
+# Create timeline for 1 year in future, 
+#   then generate predictions based on that timeline
+
+future = m.make_future_dataframe(periods=95)
+forecast = m.predict(future)
+forecast
+
+# Create plots of forecast and truth, 
+#   as well as component breakdowns of the trends
+
+plt = m.plot(forecast)
+plt.show()
+
+comp = m.plot_components(forecast)
+comp.show()
+
+forecast
+
+# Calculate average growth rate of sales of each category each day
+avg_growthRate = newdata1.mean()
+avg_growthRate = pd.DataFrame(avg_growthRate)
+avg_growthRate.columns = ['Average Growth Rate']
+avg_growthRate1 = avg_growthRate.sort_values(by = 'Average Growth Rate', ascending = False)
+avg_growthRate1
+
+# Select top 5 highest avarage growth rates
+top5_Average_GrowthRate = avg_growthRate1.iloc[:5]
+top5_Average_GrowthRate
+
+
+top5_Average_GrowthRate = newdata1[['signaling_and_security', 'food','air_conditioning', 
+                                   'home_construction', 'musical_instruments']]
+top5_Average_GrowthRate.reset_index('date')
+top5_Average_GrowthRate['date']= top5_Average_GrowthRate.index
+top5_Average_GrowthRate
+
+
+# Plot the data
+px.line(top5_Average_GrowthRate, x='date',y = ['signaling_and_security','food','air_conditioning', 
+                                   'home_construction', 'musical_instruments'],
+       labels = {
+           'date' : 'Date',
+           'sales' : 'Items sold per day'
+       })
+
+
+
+newdata1['fashion_bags_accessories']
+
+
+# Calculate median growth rate of sales of each category each day
+
+median_growthRate = newdata1.median()
+median_growthRate = pd.DataFrame(median_growthRate)
+median_growthRate.columns = ['Median Growth Rate']
+median_growthRate1 = median_growthRate.sort_values(by = 'Median Growth Rate', ascending = False)
+
+# Slect top 5 highest median growth rates
+top_Median_GrowthRate = median_growthRate1.iloc[:5]
+top_Median_GrowthRate
+
+
+
+newdata1['luggage_accessories']
+
+
+
+top5_Median_GrowthRate = newdata1[['watches_gifts', 'luggage_accessories','pet_shop', 
+                                   'food', 'air_conditioning']]
+top5_Median_GrowthRate.reset_index('date')
+top5_Median_GrowthRate['date']= top5_Median_GrowthRate.index
+top5_Median_GrowthRate
+
+# Plot the data
+px.line(top5_Median_GrowthRate, x='date',y = ['watches_gifts', 'luggage_accessories','pet_shop', 
+                                   'food', 'air_conditioning'],
+       labels = {
+           'date' : 'Date',
+           'sales' : 'Items sold per day'
+       })
+
+
+
+## Create a forecast for top 5 median growth rate
+top5_Median_GrowthRate = top5_Median_GrowthRate[['date','watches_gifts', 'luggage_accessories', 'pet_shop', 'food',
+       'air_conditioning']]
+top5_Median_GrowthRate 
+
+
+
+
+gr1 = top5_Median_GrowthRate [['date','watches_gifts']]
+gr1
+
+# Recreate the data frame with correct labels
+data1 = pd.DataFrame(gr1.values, columns = ['ds','y'])
+data1
+
+# Initialize Prophet instance and fit to data
+
+m = Prophet(changepoint_prior_scale=0.5)
+# Higher prior values will tend toward overfitting
+#     Lower values will tend toward underfitting
+
+m.fit(data1)
+# Create timeline for 1 year in future, 
+#   then generate predictions based on that timeline
+
+future = m.make_future_dataframe(periods=95)
+forecast = m.predict(future)
+forecast
+
+# Create plots of forecast and truth, 
+#   as well as component breakdowns of the trends
+
+plt = m.plot(forecast)
+plt.show()
+
+comp = m.plot_components(forecast)
+comp.show()
+
+forecast
+
+
+gr2 = top5_Median_GrowthRate [['date','luggage_accessories',]]
+gr2
+
+# Recreate the data frame with correct labels
+data2 = pd.DataFrame(gr2.values, columns = ['ds','y'])
+data2
+
+# Initialize Prophet instance and fit to data
+
+m = Prophet(changepoint_prior_scale=0.5)
+# Higher prior values will tend toward overfitting
+#     Lower values will tend toward underfitting
+
+m.fit(data2)
+# Create timeline for 1 year in future, 
+#   then generate predictions based on that timeline
+
+future = m.make_future_dataframe(periods=95)
+forecast = m.predict(future)
+forecast
+
+# Create plots of forecast and truth, 
+#   as well as component breakdowns of the trends
+
+plt = m.plot(forecast)
+plt.show()
+
+comp = m.plot_components(forecast)
+comp.show()
+
+forecast
+
+
+
