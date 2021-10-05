@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[2]:
-
-
 from bokeh.plotting import figure, output_file, show
 ## To run Bokeh plots in Jupyter, use output_notebook(). Otherwise use output_file('filename.html') to display in a html page
 from bokeh.io import output_notebook
@@ -23,54 +17,11 @@ import pandas as pd
 output_file('thorwwii.html.')
 
 
-# In[3]:
-
-
 df = pd.read_csv("thor_wwii.csv")
-df
-
-
-# In[7]:
-
-
-x = [1, 3, 5, 7]
-y = [2, 4, 6, 8]
-
-
-# In[ ]:
-
-
-
-
-
-# In[12]:
-
-
-p = figure()
-
-p.circle(x, y, size=10, color='red', legend_label='circle')
-p.line(x, y, color='blue', legend_label='line')
-p.triangle(y, x, color='gold', size=10, legend_label='triangle')
-##Allows user to show/hide plot on line by clicking legend
-p.legend.click_policy='hide'
-
-
-# In[13]:
-
-
-show(p)
-
-
-# In[29]:
-
 
 colum = df.columns.tolist()
 colum
 #MSNDATE (mission date), NAF (numbered airforce responsible for mission), AC_ATTACKING (number of aircraft), TONS_HE (high-explosives), TONS_IC (incendiary devices), TONS_FRAG (fragmentation bombs).
-
-
-# In[4]:
-
 
 #sample = df.sample(50)
 source = ColumnDataSource(df.sample(50))
