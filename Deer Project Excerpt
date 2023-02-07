@@ -1,0 +1,95 @@
+##Libraries
+
+import tensorflow as tf
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from PIL import Image, ExifTags
+import os
+##
+import zipfile
+##
+from datetime import datetime
+
+from bokeh.plotting import figure, output_file, show
+
+from bokeh.io import output_notebook
+from bokeh.models import ColumnDataSource, Range1d
+from bokeh.models.tools import HoverTool
+from bokeh.palettes import Inferno5, Spectral3
+from bokeh.transform import factor_cmap
+from bokeh.models import BoxAnnotation
+from bokeh.tile_providers import get_provider
+from bokeh.layouts import layout
+
+output_notebook()
+## To run Bokeh plots in Jupyter, use output_notebook(). Otherwise use output_file('filename.html') to display in a html page
+
+#img = Image.open(path/to/photo.jpg)
+#exif = { ExifTags.TAGS[k]: v for k, v in img._getexif().items() if k in ExifTags.TAGS }
+
+#gpsinfo = {}
+#for key in exif['GPSInfo'].keys():
+#    decode = ExifTags.GPSTAGS.get(key,key)
+#    gpsinfo[decode] = exif['GPSInfo'][key]
+#print (gpsinfo)
+
+
+    
+    
+
+def photoDF(deer):
+    f = []
+    exil = []
+    for root, dirs, files in os.walk(f"C:/deer"):
+        f.append(files)
+        flattened = [val for sublist in f for val in sublist]
+        for file in flattened:
+            try: 
+                img = Image.open(f'{root}/{file}')
+                exil.append({ ExifTags.TAGS[k]: v for k, v in img._getexif().items() if k in ExifTags.TAGS })
+            except: 
+                pass
+
+    df = pd.DataFrame(exil)
+    df['datetime'] = pd.to_datetime(df['DateTimeOriginal'], format = '%Y:%m:%d %X')
+    df['date'] = df['datetime'].dt.date
+    df['time'] = df['datetime'].dt.time
+    df['hour'] = df['datetime'].dt.hour
+
+    dataDate = pd.DataFrame(df.groupby('date')['date'].size())
+    dataDate = dataDate.rename(columns = {'date':'n'})
+    
+    return (df, dataDate)
+
+
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+# All images will be rescaled by 1./255
+train_datagen = ImageDataGenerator(
+    rescale=1./255,
+    rotation_range=40,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    shear_range=0.2,
+    zoom_range=0.2,
+    horizontal_flip=True,)
+
+
+val_datagen = ImageDataGenerator(rescale=1./255)
+
+# Flow training images in batches of 20 using train_datagen generator
+train_generator = train_datagen.flow_from_directory(
+        train_deer_dir,  # This is the source directory for training images
+        target_size=(150, 150),  # All images will be resized to 150x150
+        batch_size=20,
+        # Since we use binary_crossentropy loss, we need binary labels
+        class_mode='binary')
+
+# Flow validation images in batches of 20 using val_datagen generator
+validation_generator = val_datagen.flow_from_directory(
+        validation_dir,
+        target_size=(150, 150),
+        batch_size= 24,
+        class_mode='binary')
+        
